@@ -1,0 +1,45 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /products/{id} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.token.admin == true;
+    }
+    // needed by UserMetadataRepository
+    match /metadata/{uid} {
+      allow read: if request.auth.uid == uid;
+    }
+    // cart
+    match /cart/{uid} {
+      allow read, write: if request.auth.uid == uid;
+    }
+    
+    // allow client app to write checkout session data so the Stripe extension can process it
+    match /stripe_customers/{uid} {
+      match /checkout_sessions/{id} {
+        allow read, write: if request.auth.uid == uid;
+      }
+      match /payments/{id} {
+        allow read: if request.auth.uid == uid;
+      }
+    }
+
+    // using wildcard since orders is a collection group. More details here:
+    // https://firebase.blog/posts/2019/06/understanding-collection-group-queries
+    match /{somePath=**}/orders/{id} {
+      allow read: if resource.data.userId == request.auth.uid || request.auth.token.admin == true;
+      allow write: if request.auth.token.admin == true;
+    }
+
+    // latest order for a user
+    match /latest_orders/{uid} {
+      allow read: if request.auth.uid == uid;
+    }
+
+    // reviews
+    match /products/{id}/reviews/{uid} {
+      allow read: if true;
+      allow write: if request.auth.uid == uid;
+    }
+  }
+}
